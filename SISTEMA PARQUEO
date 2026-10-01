@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<!-- Metadatos para PWA e iOS (Safari) -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#799047">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Parqueo Roble">
+<link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3005/3005380.png">
+
+<!-- Script para registrar el Service Worker -->
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js')
+        .then(reg => console.log('PWA Lista:', reg.scope))
+        .catch(err => console.error('Error PWA:', err));
+    });
+  }
+</script>
+
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Parqueo - Grupo Roble</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        roble: {
+                            50: '#f5f7f2',
+                            100: '#e6ebd8',
+                            200: '#cfdbb5',
+                            300: '#b1c48a',
+                            400: '#94aa63',
+                            500: '#799047', // Main logo leaf green
+                            600: '#5e7235', // Deep olive green
+                            700: '#48582b',
+                            800: '#3c4826',
+                            900: '#2c351c',
+                        },
+                        cream: {
+                            50: '#fdfbf7',
+                            100: '#f7f4eb',
+                            200: '#efe8d5',
+                            300: '#e3d7b8',
+                        }
+                    },
+                    fontFamily: {
+                        serif: ['Cinzel', 'Georgia', 'serif'],
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f5f0;
+        }
+        .font-roble-title {
+            font-family: 'Cinzel', serif;
+            letter-spacing: 0.12em;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #efe8d5;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #799047;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="min-h-screen text-slate-800 flex flex-col justify-between antialiased selection:bg-roble-200 selection:text-roble-900">
+
+    <header class="bg-white border-b-2 border-roble-500 shadow-md">
+        <div class="max-w-6xl mx-auto px-4 py-4 flex flex-wrap justify-between items-center gap-4">
+            
+            <!-- Logo Brand Header -->
+            <div class="flex items-center space-x-3.5">
+                <div class="w-12 h-12 bg-cream-100 border border-roble-300 rounded-xl p-1.5 flex items-center justify-center shadow-sm">
+                    <svg viewBox="0 0 100 100" class="w-full h-full text-roble-600 fill-current">
+                        <path d="M50 12 C35 12 20 22 20 38 C20 46 25 53 32 58 C28 62 26 68 28 73 C30 78 35 81 41 81 L45 81 L45 92 L55 92 L55 81 L59 81 C65 81 70 78 72 73 C74 68 72 62 68 58 C75 53 80 46 80 38 C80 22 65 12 50 12 Z M50 20 C61 20 71 27 71 38 C71 44 67 50 61 53 L58 55 L61 58 C64 61 65 65 64 68 C63 72 60 73 56 73 L44 73 C40 73 37 72 36 68 C35 65 36 61 39 58 L42 55 L39 53 C33 50 29 44 29 38 C29 27 39 20 50 20 Z" />
+                    </svg>
+                </div>
+                <div>
+                    <span class="text-xs font-bold font-roble-title tracking-widest text-roble-700 block -mb-0.5">GRUPO</span>
+                    <h1 class="text-2xl font-black font-roble-title text-roble-900 tracking-wider">ROBLE</h1>
+                    <p class="text-[11px] text-slate-500 font-semibold tracking-wide uppercase">Sistema de Cobro de Parqueo</p>
+                </div>
+            </div>
+
+            <!-- Clock and Day Badge -->
+            <div class="flex items-center space-x-3 bg-cream-100 px-4 py-2 rounded-xl border border-cream-300 shadow-inner">
+                <div class="text-right">
+                    <div id="liveClock" class="text-lg font-bold font-mono tracking-wider text-roble-900">00:00:00 AM</div>
+                    <div id="liveDate" class="text-xs text-roble-700 font-medium">Cargando fecha...</div>
+                </div>
+                <div class="h-8 w-px bg-roble-200 mx-1"></div>
+                <div id="dayBadge" class="bg-roble-600 text-white text-xs font-black uppercase px-3 py-1 rounded-lg tracking-wider shadow-sm">
+                    ---
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 py-6 w-full flex-grow grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- LEFT PANEL: Controls, Inputs & Discounts (7 cols) -->
+        <section class="lg:col-span-7 flex flex-col gap-5">
+            
+            <!-- 1. Modalidad (Tarifa Type) -->
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-cream-300">
+                <label class="block text-xs font-bold uppercase tracking-wider text-roble-800 mb-3">
+                    <i class="fa-solid fa-layer-group mr-1.5 text-roble-600"></i> Modalidad de Cliente
+                </label>
+                <div class="grid grid-cols-2 gap-3">
+                    <button id="btnTarifaGeneral" onclick="setModalidad('GENERAL')" class="flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all duration-200 text-roble-900 border-roble-500 bg-roble-50 shadow-sm ring-2 ring-roble-500/20">
+                        <i class="fa-solid fa-car text-2xl mb-1.5 text-roble-600"></i>
+                        <span class="font-bold text-sm">LUNES - DOMINGO</span>
+                        <span class="text-xs text-roble-700 font-medium">Ticket Normal (0-10m Gratis)</span>
+                    </button>
+                    <button id="btnTarifaRecargable" onclick="setModalidad('RECARGABLE')" class="flex flex-col items-center justify-center p-4 rounded-xl border-2 border-slate-200 bg-slate-50 hover:bg-slate-100 transition-all duration-200 text-slate-600">
+                        <i class="fa-solid fa-address-card text-2xl mb-1.5 text-slate-500"></i>
+                        <span class="font-bold text-sm">TARJETAS RECARGABLES</span>
+                        <span class="text-xs text-slate-500 font-medium">Cliente Frecuente</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 2. Hours Selection (Ticket Entry & Exit) -->
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-cream-300 flex flex-col gap-4">
+                <div class="flex justify-between items-center">
+                    <label class="text-xs font-bold uppercase tracking-wider text-roble-800">
+                        <i class="fa-solid fa-clock mr-1.5 text-roble-600"></i> Registro de Horas
+                    </label>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-xs font-medium text-slate-600">Salida Automática</span>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="toggleAutoExit" checked onchange="toggleAutoExitHandler()" class="sr-only peer">
+                            <div class="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-roble-600"></div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <!-- Entry Time Input -->
+                    <div class="bg-cream-50 p-3.5 rounded-xl border border-cream-200">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-xs text-roble-800 font-bold">HORA DE ENTRADA:</span>
+                            <span class="text-[10px] text-slate-400">Impresa en Ticket</span>
+                        </div>
+                        <input type="time" id="inputEntryTime" onchange="manualEntryTimeChanged()" onkeyup="manualEntryTimeChanged()" class="w-full text-2xl font-black font-mono text-roble-900 bg-white border border-roble-300 rounded-lg p-2.5 focus:ring-2 focus:ring-roble-500 focus:outline-none transition-all shadow-inner">
+                    </div>
+
+                    <!-- Exit Time Input -->
+                    <div class="bg-cream-50 p-3.5 rounded-xl border border-cream-200">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-xs text-roble-800 font-bold">HORA DE SALIDA:</span>
+                            <span id="exitStatusBadge" class="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">EN VIVO</span>
+                        </div>
+                        <input type="time" id="inputExitTime" readonly onchange="manualExitTimeChanged()" onkeyup="manualExitTimeChanged()" class="w-full text-2xl font-black font-mono text-roble-900 bg-slate-100 border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-roble-500 focus:outline-none transition-all shadow-inner">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Exclusive Discounts (Cinépolis / SmartFit) -->
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-cream-300">
+                <div class="flex justify-between items-center mb-3">
+                    <label class="text-xs font-bold uppercase tracking-wider text-roble-800">
+                        <i class="fa-solid fa-ticket-simple mr-1.5 text-roble-600"></i> Convenios y Descuentos Exclusivos
+                    </label>
+                    <span class="text-[11px] text-slate-400 font-medium">Selección Única</span>
+                </div>
+
+                <div class="grid grid-cols-3 gap-3">
+                    <!-- Option 1: None -->
+                    <button type="button" id="btnDiscountNone" onclick="setDiscount('NONE')" class="p-3.5 rounded-xl border-2 border-roble-500 bg-roble-50 text-roble-900 flex flex-col items-center justify-center font-bold text-xs transition-all shadow-sm">
+                        <i class="fa-solid fa-ban text-lg mb-1 text-slate-400"></i>
+                        <span>Sin Descuento</span>
+                    </button>
+
+                    <!-- Option 2: Cinépolis -->
+                    <button type="button" id="btnDiscountCinepolis" onclick="setDiscount('CINEPOLIS')" class="p-3.5 rounded-xl border-2 border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 flex flex-col items-center justify-center font-bold text-xs transition-all">
+                        <i class="fa-solid fa-film text-lg mb-1 text-amber-600"></i>
+                        <span>CINÉPOLIS</span>
+                        <span class="text-[10px] text-emerald-700 font-semibold font-mono">-$1.00 Total</span>
+                    </button>
+
+                    <!-- Option 3: SmartFit -->
+                    <button type="button" id="btnDiscountSmartfit" onclick="setDiscount('SMARTFIT')" class="p-3.5 rounded-xl border-2 border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 flex flex-col items-center justify-center font-bold text-xs transition-all">
+                        <i class="fa-solid fa-dumbbell text-lg mb-1 text-amber-500"></i>
+                        <span>SMARTFIT</span>
+                        <span class="text-[10px] text-amber-700 font-semibold">Máx 2 Horas</span>
+                    </button>
+                </div>
+
+                <!-- Warning Banner for Exceeded SmartFit Time -->
+                <div id="smartfitWarning" class="hidden mt-3 p-3 bg-amber-50 border border-amber-300 rounded-xl text-amber-900 flex items-start gap-2.5 text-xs animate-fadeIn">
+                    <i class="fa-solid fa-circle-exclamation text-amber-600 text-sm mt-0.5 shrink-0"></i>
+                    <div>
+                        <span class="font-bold block">¡Convenio SmartFit vencido!</span>
+                        <span>El tiempo total transcurrido supera el límite permitido de <strong>2 horas</strong>. El convenio de SmartFit <strong>no surte efecto ($0.00 descuento)</strong> y se cobrará la tarifa regular de parqueo.</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. Optional Cash Calculator Toggle -->
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-cream-300">
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center space-x-2.5">
+                        <div class="bg-roble-100 p-2 rounded-lg text-roble-700">
+                            <i class="fa-solid fa-cash-register text-base"></i>
+                        </div>
+                        <div>
+                            <span class="text-xs font-bold uppercase tracking-wider text-roble-900 block">Calculadora de Cambio</span>
+                            <span class="text-xs text-slate-500">Despliega opciones para cobro en efectivo</span>
+                        </div>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="toggleCashCalc" onchange="toggleCashCalcHandler()" class="sr-only peer">
+                        <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-roble-600"></div>
+                    </label>
+                </div>
+
+                <!-- Hidden Cash Box Container -->
+                <div id="cashCalcContainer" class="hidden mt-4 pt-4 border-t border-cream-200">
+                    <div class="grid grid-cols-2 gap-3 mb-3">
+                        <div>
+                            <label class="text-xs text-slate-600 font-semibold block mb-1">Efectivo Recibido ($):</label>
+                            <input type="number" id="inputCash" placeholder="0.00" step="0.50" min="0" oninput="calcularCambio()" class="w-full text-xl font-bold font-mono text-slate-800 bg-slate-50 border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-roble-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="text-xs text-slate-600 font-semibold block mb-1">Vuelto / Cambio ($):</label>
+                            <div id="displayChange" class="w-full text-xl font-bold font-mono text-roble-800 bg-roble-50 border border-roble-200 rounded-xl p-2.5 flex items-center justify-between">
+                                <span>$0.00</span>
+                                <i class="fa-solid fa-hand-holding-dollar text-roble-600 text-base"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Fast Cash Buttons -->
+                    <div class="grid grid-cols-4 gap-2">
+                        <button onclick="setCash(1)" class="bg-cream-100 hover:bg-cream-200 text-roble-900 font-bold py-1.5 rounded-lg text-xs transition-colors border border-cream-300">$1.00</button>
+                        <button onclick="setCash(5)" class="bg-cream-100 hover:bg-cream-200 text-roble-900 font-bold py-1.5 rounded-lg text-xs transition-colors border border-cream-300">$5.00</button>
+                        <button onclick="setCash(10)" class="bg-cream-100 hover:bg-cream-200 text-roble-900 font-bold py-1.5 rounded-lg text-xs transition-colors border border-cream-300">$10.00</button>
+                        <button onclick="setCash(20)" class="bg-cream-100 hover:bg-cream-200 text-roble-900 font-bold py-1.5 rounded-lg text-xs transition-colors border border-cream-300">$20.00</button>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- RIGHT PANEL: Summary & Big Total Display (5 cols) -->
+        <section class="lg:col-span-5 flex flex-col gap-5">
+
+            <!-- Summary Card with Roble Theme -->
+            <div class="bg-roble-900 text-white p-6 rounded-2xl shadow-xl flex flex-col justify-between border border-roble-800 relative overflow-hidden">
+                <div class="absolute -right-12 -bottom-12 w-48 h-48 bg-roble-500/20 rounded-full blur-3xl pointer-events-none"></div>
+
+                <div>
+                    <div class="flex justify-between items-center mb-5">
+                        <span class="text-xs font-black uppercase tracking-widest text-roble-300 font-roble-title">RESUMEN DE COBRO</span>
+                        <span id="summaryModalidad" class="text-xs bg-roble-800 text-roble-200 border border-roble-700 font-bold px-3 py-1 rounded-md uppercase">
+                            LUNES - DOMINGO
+                        </span>
+                    </div>
+
+                    <!-- Time Stats Box -->
+                    <div class="bg-roble-800/80 rounded-xl p-4 border border-roble-700/80 mb-5 flex justify-between items-center shadow-inner">
+                        <div>
+                            <span class="text-xs text-roble-300 block font-medium">Tiempo Transcurrido</span>
+                            <span id="displayDuration" class="text-2xl font-extrabold text-white font-mono">0h 0m</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-xs text-roble-300 block font-medium">Tramo de Tarifa</span>
+                            <span id="displayBaseRate" class="text-sm font-semibold text-cream-200 font-mono">$0.00</span>
+                        </div>
+                    </div>
+
+                    <!-- Line Breakdown -->
+                    <div class="space-y-2.5 text-xs text-roble-200 mb-6 font-medium border-t border-roble-800 pt-4">
+                        <div class="flex justify-between">
+                            <span>Subtotal Parqueo:</span>
+                            <span id="displaySubtotal" class="font-mono font-bold text-white">$0.00</span>
+                        </div>
+                        <div class="flex justify-between text-amber-300">
+                            <span id="displayDiscountLabel">Convenio Aplicado:</span>
+                            <span id="displayDiscount" class="font-mono font-bold">-$0.00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Prominent Big Total Box -->
+                <div class="bg-roble-600 rounded-xl p-5 text-center shadow-lg border border-roble-400/40">
+                    <span class="text-xs font-black uppercase tracking-widest text-roble-100 block mb-1">MONTO A CANCELAR</span>
+                    <span id="displayTotal" class="text-5xl font-black text-white font-mono tracking-tight">$0.00</span>
+                </div>
+            </div>
+
+            <!-- Quick Actions & Reset Button -->
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-cream-300 flex flex-col gap-3">
+                <button onclick="resetCalculator()" class="w-full bg-roble-700 hover:bg-roble-800 text-white font-bold py-4 px-4 rounded-xl transition-all shadow-md active:scale-[0.99] flex items-center justify-center gap-2.5 text-sm tracking-wide">
+                    <i class="fa-solid fa-rotate-right text-base"></i> NUEVO TICKET / REINICIAR
+                </button>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="bg-white border-t border-cream-300 py-4 mt-4">
+        <div class="max-w-6xl mx-auto px-4 text-xs text-slate-500 flex flex-wrap justify-between items-center gap-2">
+            <div class="flex items-center space-x-3">
+                <span class="font-bold text-roble-900 font-roble-title">GRUPO ROBLE</span>
+                <span class="text-slate-300">•</span>
+                <span>Tarifario Oficial de Estacionamiento</span>
+            </div>
+            <div class="font-medium text-slate-400">
+                Control de Caja v2.1
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Global State Variables
+        let currentModalidad = 'GENERAL'; // 'GENERAL' or 'RECARGABLE'
+        let currentDiscount = 'NONE'; // 'NONE', 'CINEPOLIS', 'SMARTFIT'
+        let autoExitActive = true;
+        let isCashCalcActive = false;
+        let calculatedTotal = 0.00;
+
+        const daysOfWeek = ['DOMINGO', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO'];
+
+        window.onload = function() {
+            updateClock();
+            setInterval(updateClock, 1000);
+            
+            // Set default entry time to current time - 1 hour for initial demo
+            const now = new Date();
+            let entryHour = now.getHours() - 1;
+            if (entryHour < 0) entryHour += 24;
+            const strEntryH = String(entryHour).padStart(2, '0');
+            const strEntryM = String(now.getMinutes()).padStart(2, '0');
+            
+            document.getElementById('inputEntryTime').value = `${strEntryH}:${strEntryM}`;
+            syncExitTimeWithClock();
+        };
+
+        function updateClock() {
+            const now = new Date();
+            
+            let hours = now.getHours();
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12;
+            const strHours = String(hours).padStart(2, '0');
+
+            document.getElementById('liveClock').textContent = `${strHours}:${minutes}:${seconds} ${ampm}`;
+
+            const dayName = daysOfWeek[now.getDay()];
+            const options = { day: 'numeric', month: 'short', year: 'numeric' };
+            document.getElementById('liveDate').textContent = now.toLocaleDateString('es-ES', options);
+
+            const dayBadge = document.getElementById('dayBadge');
+            dayBadge.textContent = dayName;
+
+            if (autoExitActive) {
+                syncExitTimeWithClock();
+            }
+        }
+
+        function syncExitTimeWithClock() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            document.getElementById('inputExitTime').value = `${hours}:${minutes}`;
+            calcularTarifa();
+        }
+
+        function toggleAutoExitHandler() {
+            autoExitActive = document.getElementById('toggleAutoExit').checked;
+            const exitInput = document.getElementById('inputExitTime');
+            const badge = document.getElementById('exitStatusBadge');
+
+            if (autoExitActive) {
+                exitInput.readOnly = true;
+                exitInput.className = "w-full text-2xl font-black font-mono text-roble-900 bg-slate-100 border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-roble-500 focus:outline-none transition-all shadow-inner";
+                badge.textContent = "EN VIVO";
+                badge.className = "text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded";
+                syncExitTimeWithClock();
+            } else {
+                exitInput.readOnly = false;
+                exitInput.className = "w-full text-2xl font-black font-mono text-roble-900 bg-white border border-roble-300 rounded-lg p-2.5 focus:ring-2 focus:ring-roble-500 focus:outline-none transition-all shadow-inner";
+                badge.textContent = "MANUAL";
+                badge.className = "text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded";
+            }
+        }
+
+        function manualEntryTimeChanged() {
+            calcularTarifa();
+        }
+
+        function manualExitTimeChanged() {
+            if (!autoExitActive) {
+                calcularTarifa();
+            }
+        }
+
+        function setModalidad(mod) {
+            currentModalidad = mod;
+            const btnGen = document.getElementById('btnTarifaGeneral');
+            const btnRec = document.getElementById('btnTarifaRecargable');
+            const summaryBadge = document.getElementById('summaryModalidad');
+
+            if (mod === 'GENERAL') {
+                btnGen.className = "flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all duration-200 text-roble-900 border-roble-500 bg-roble-50 shadow-sm ring-2 ring-roble-500/20";
+                btnRec.className = "flex flex-col items-center justify-center p-4 rounded-xl border-2 border-slate-200 bg-slate-50 hover:bg-slate-100 transition-all duration-200 text-slate-600";
+                summaryBadge.textContent = "LUNES - DOMINGO";
+            } else {
+                btnRec.className = "flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all duration-200 text-roble-900 border-roble-500 bg-roble-50 shadow-sm ring-2 ring-roble-500/20";
+                btnGen.className = "flex flex-col items-center justify-center p-4 rounded-xl border-2 border-slate-200 bg-slate-50 hover:bg-slate-100 transition-all duration-200 text-slate-600";
+                summaryBadge.textContent = "TARJETA RECARGABLE";
+            }
+
+            calcularTarifa();
+        }
+
+        function setDiscount(type) {
+            currentDiscount = type;
+            const btnNone = document.getElementById('btnDiscountNone');
+            const btnCine = document.getElementById('btnDiscountCinepolis');
+            const btnSmart = document.getElementById('btnDiscountSmartfit');
+
+            const inactiveClass = "p-3.5 rounded-xl border-2 border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 flex flex-col items-center justify-center font-bold text-xs transition-all";
+            const activeClass = "p-3.5 rounded-xl border-2 border-roble-500 bg-roble-50 text-roble-900 flex flex-col items-center justify-center font-bold text-xs transition-all shadow-sm ring-2 ring-roble-500/20";
+
+            btnNone.className = inactiveClass;
+            btnCine.className = inactiveClass;
+            btnSmart.className = inactiveClass;
+
+            if (type === 'NONE') {
+                btnNone.className = activeClass;
+            } else if (type === 'CINEPOLIS') {
+                btnCine.className = activeClass;
+            } else if (type === 'SMARTFIT') {
+                btnSmart.className = activeClass;
+            }
+
+            calcularTarifa();
+        }
+
+        function toggleCashCalcHandler() {
+            isCashCalcActive = document.getElementById('toggleCashCalc').checked;
+            const container = document.getElementById('cashCalcContainer');
+            if (isCashCalcActive) {
+                container.classList.remove('hidden');
+            } else {
+                container.classList.add('hidden');
+                document.getElementById('inputCash').value = '';
+            }
+        }
+
+        // Calculation Engine with SmartFit, Cinépolis and 0-10 Min Rules
+        function calcularTarifa() {
+            const entryVal = document.getElementById('inputEntryTime').value;
+            const exitVal = document.getElementById('inputExitTime').value;
+
+            if (!entryVal || !exitVal) return;
+
+            const [entryH, entryM] = entryVal.split(':').map(Number);
+            const [exitH, exitM] = exitVal.split(':').map(Number);
+
+            let entryTotalMinutes = entryH * 60 + entryM;
+            let exitTotalMinutes = exitH * 60 + exitM;
+
+            if (exitTotalMinutes < entryTotalMinutes) {
+                exitTotalMinutes += 24 * 60;
+            }
+
+            const diffMinutes = exitTotalMinutes - entryTotalMinutes;
+
+            const displayHours = Math.floor(diffMinutes / 60);
+            const displayMins = diffMinutes % 60;
+            document.getElementById('displayDuration').textContent = `${displayHours}h ${displayMins}m`;
+
+            let subtotal = 0;
+            let baseRateText = "$0.00";
+
+            if (currentModalidad === 'GENERAL') {
+                if (diffMinutes <= 10) {
+                    // Gracia / Tolerancia: 0 a 10 minutos es gratis en ticket normal
+                    subtotal = 0.00;
+                    baseRateText = "$0.00 (Gratis 0-10m)";
+                } else if (diffMinutes <= 120) {
+                    subtotal = 0.50;
+                    baseRateText = "$0.50 (<= 2h)";
+                } else if (diffMinutes <= 180) {
+                    subtotal = 1.00;
+                    baseRateText = "$1.00 (2h - 3h)";
+                } else {
+                    subtotal = 1.00;
+                    const extraMinutes = diffMinutes - 180;
+                    const extraHours = Math.ceil(extraMinutes / 60);
+                    subtotal += extraHours * 1.00;
+                    baseRateText = `$1.00 + ${extraHours}h extra`;
+                }
+            } else {
+                // Tarjeta recargable: Cobra desde el minuto 1
+                if (diffMinutes <= 180) {
+                    subtotal = 0.50;
+                    baseRateText = "$0.50 (<= 3h)";
+                } else if (diffMinutes <= 240) {
+                    subtotal = 1.00;
+                    baseRateText = "$1.00 (3h - 4h)";
+                } else {
+                    subtotal = 1.00;
+                    const extraMinutes = diffMinutes - 240;
+                    const extraHours = Math.ceil(extraMinutes / 60);
+                    subtotal += extraHours * 1.00;
+                    baseRateText = `$1.00 + ${extraHours}h extra`;
+                }
+            }
+
+            let discount = 0;
+            let discountLabel = "Convenio Aplicado:";
+            const warningBox = document.getElementById('smartfitWarning');
+            warningBox.classList.add('hidden');
+
+            if (currentDiscount === 'CINEPOLIS') {
+                discount = 1.00;
+                discountLabel = "Convenio CINÉPOLIS:";
+            } else if (currentDiscount === 'SMARTFIT') {
+                discountLabel = "Convenio SMARTFIT:";
+                // SmartFit logic: Valid <= 120 minutes
+                if (diffMinutes <= 120) {
+                    discount = subtotal; // Covers 100% of the cost ($0.00 total)
+                } else {
+                    discount = 0.00; // Over 2 hours -> Exceeded, no effect!
+                    warningBox.classList.remove('hidden');
+                }
+            }
+
+            calculatedTotal = Math.max(0, subtotal - discount);
+
+            document.getElementById('displayBaseRate').textContent = baseRateText;
+            document.getElementById('displaySubtotal').textContent = `$${subtotal.toFixed(2)}`;
+            document.getElementById('displayDiscountLabel').textContent = discountLabel;
+            document.getElementById('displayDiscount').textContent = `-$${discount.toFixed(2)}`;
+            document.getElementById('displayTotal').textContent = `$${calculatedTotal.toFixed(2)}`;
+
+            calcularCambio();
+        }
+
+        function setCash(amount) {
+            document.getElementById('inputCash').value = amount.toFixed(2);
+            calcularCambio();
+        }
+
+        function calcularCambio() {
+            if (!isCashCalcActive) return;
+
+            const cashInput = parseFloat(document.getElementById('inputCash').value) || 0;
+            const changeDisplay = document.getElementById('displayChange');
+
+            if (cashInput >= calculatedTotal) {
+                const change = cashInput - calculatedTotal;
+                changeDisplay.innerHTML = `<span>$${change.toFixed(2)}</span> <i class="fa-solid fa-check text-roble-600 text-base"></i>`;
+                changeDisplay.className = "w-full text-xl font-bold font-mono text-roble-800 bg-roble-50 border border-roble-300 rounded-xl p-2.5 flex items-center justify-between";
+            } else if (cashInput > 0) {
+                const deficit = calculatedTotal - cashInput;
+                changeDisplay.innerHTML = `<span class="text-xs font-semibold">Faltan: $${deficit.toFixed(2)}</span> <i class="fa-solid fa-triangle-exclamation text-amber-600 text-base"></i>`;
+                changeDisplay.className = "w-full text-xl font-bold font-mono text-amber-800 bg-amber-50 border border-amber-300 rounded-xl p-2.5 flex items-center justify-between";
+            } else {
+                changeDisplay.innerHTML = `<span>$0.00</span> <i class="fa-solid fa-hand-holding-dollar text-roble-600 text-base"></i>`;
+                changeDisplay.className = "w-full text-xl font-bold font-mono text-roble-800 bg-roble-200 rounded-xl p-2.5 flex items-center justify-between";
+            }
+        }
+
+        function resetCalculator() {
+            document.getElementById('inputCash').value = '';
+            setDiscount('NONE');
+            
+            if (!autoExitActive) {
+                document.getElementById('toggleAutoExit').checked = true;
+                toggleAutoExitHandler();
+            }
+
+            syncExitTimeWithClock();
+        }
+    </script>
+</body>
+</html>
+const CACHE_NAME = 'parqueo-roble-v2';
+const urlsToCache = [
+  './',
+  './index.html',
+  'https://cdn.tailwindcss.com',
+  'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'
+];
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(urlsToCache))
+  );
+});
+
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    caches.match(event.request).then((response) => response || fetch(event.request))
+  );
+});
+{
+  "short_name": "Parqueo Roble",
+  "name": "Sistema de Parqueo - Grupo Roble",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3005/3005380.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3005/3005380.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "./index.html",
+  "background_color": "#f7f5f0",
+  "theme_color": "#799047",
+  "display": "standalone",
+  "orientation": "portrait"
+}
