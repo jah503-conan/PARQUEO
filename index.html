@@ -606,43 +606,5 @@
     </script>
 </body>
 </html>
-const CACHE_NAME = 'parqueo-roble-v2';
-const urlsToCache = [
-  './',
-  './index.html',
-  'https://cdn.tailwindcss.com',
-  'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'
-];
-
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(urlsToCache))
-  );
-});
-
-self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    caches.match(event.request).then((response) => response || fetch(event.request))
-  );
-});
-{
-  "short_name": "Parqueo Roble",
-  "name": "Sistema de Parqueo - Grupo Roble",
-  "icons": [
-    {
-      "src": "https://cdn-icons-png.flaticon.com/512/3005/3005380.png",
-      "type": "image/png",
-      "sizes": "192x192"
-    },
-    {
-      "src": "https://cdn-icons-png.flaticon.com/512/3005/3005380.png",
-      "type": "image/png",
-      "sizes": "512x512"
-    }
-  ],
-  "start_url": "./index.html",
-  "background_color": "#f7f5f0",
-  "theme_color": "#799047",
-  "display": "standalone",
   "orientation": "portrait"
 }
