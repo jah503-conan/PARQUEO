@@ -297,7 +297,7 @@
                             <span id="displaySubtotal" class="font-mono font-bold text-white">$0.00</span>
                         </div>
                         <div class="flex justify-between text-amber-300">
-                            <span id="displayDiscountLabel">Convenio Aplicado:</span>
+                            <span id="displayDiscountLabel">Descuento Aplicado:</span>
                             <span id="displayDiscount" class="font-mono font-bold">-$0.00</span>
                         </div>
                     </div>
@@ -538,15 +538,15 @@
             }
 
             let discount = 0;
-            let discountLabel = "Convenio Aplicado:";
+            let discountLabel = "Descuento Aplicado:";
             const warningBox = document.getElementById('smartfitWarning');
             warningBox.classList.add('hidden');
 
             if (currentDiscount === 'CINEPOLIS') {
                 discount = 1.00;
-                discountLabel = "Convenio CINÉPOLIS:";
+                discountLabel = "Descuento CINÉPOLIS:";
             } else if (currentDiscount === 'SMARTFIT') {
-                discountLabel = "Convenio SMARTFIT:";
+                discountLabel = "Descuento SMARTFIT:";
                 // SmartFit logic: Valid <= 120 minutes
                 if (diffMinutes <= 120) {
                     discount = subtotal; // Covers 100% of the cost ($0.00 total)
